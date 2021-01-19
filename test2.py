@@ -1,12 +1,10 @@
 from data import ImplicitData
-from param_tuning import PatternSearchISGD
 from pprint import pprint
 import pandas as pd
 from operator import itemgetter
 import numpy as np
-from recommenders_implicit import * #BISGD
-from recommenders_implicit.BISGD_ import BISGD
-from eval_implicit.EvalPrequential2_ import EvalPrequential
+from recommenders_implicit import BISGD
+from eval_implicit import EvalPrequential
 from datetime import datetime
 
 data = pd.read_csv("datasets/playlisted_tracks.tsv","\t")
@@ -27,12 +25,12 @@ print('sum(resultados[Recall@20])/stream.size', sum(resultados['Recall@20'])/str
 #1 node
 #0.18298
 #runtime 2:13:07
-   
+
 #recall20 n=2
 # 0.1951
 #run time 3:40:22
 
-#6 nodes 
+#6 nodes
 #recall20 = 0.2022
 #run time = 9:09:32
 

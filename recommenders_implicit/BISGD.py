@@ -3,9 +3,11 @@ from collections import defaultdict
 import random
 from data import ImplicitData
 import numpy as np
-from .Model2 import Model2 
+import pandas as pd
+from .Model import Model
 
-class BISGD(Model2):
+
+class BISGD(Model):
     def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, NrNodes: int = 5, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1, use_numba: bool = False):
         """    Constructor.
 
@@ -16,6 +18,7 @@ class BISGD(Model2):
         learn_rate -- Learn rate, aka step size (float, default 0.01)
         regularization -- Regularization factor (float, default 0.01)
         random_seed -- Random seed (int, default 1)"""
+
         self.counter=0
         self.data = data
         self.num_factors = num_factors
@@ -27,21 +30,21 @@ class BISGD(Model2):
         self.use_numba = use_numba
         self.nrNodes = NrNodes
         np.random.seed(random_seed)
-        self._InitModel()  
-        
+        self._InitModel()
 
     def _InitModel(self):
-        self.user_factors = defaultdict(dict)
-        self.item_factors = defaultdict(dict)
-        self.counter=self.counter + 1        
-        
-        for node in range(self.nrNodes): 
-            for u in self.data.userset:                
+        self.user_factors = []
+        self.item_factors = []
+
+        for node in range(self.nrNodes):
+            self.user_factors.append({})
+            self.item_factors.append({})
+            for u in self.data.userset:
                 self.user_factors[node][u] = np.random.normal(0.0, 0.01, self.num_factors)
-            for i in self.data.itemset:                
+            for i in self.data.itemset:
                 self.item_factors[node][i] = np.random.normal(0.0, 0.01, self.num_factors)
-        
-    def BatchTrain(self): # not modified
+
+    def BatchTrain(self):
         """
         Trains a new model with the available data.
         """
@@ -52,7 +55,7 @@ class BISGD(Model2):
                 user_id, item_id = self.data.GetTuple(i)
                 self._UpdateFactors(user_id, item_id)
 
-    def IncrTrain(self, user_id, item_id, node, entra_uid, entra_iid, update_users: bool = True, update_items: bool = True):
+    def IncrTrain(self, user_id, item_id, update_users: bool = True, update_items: bool = True):
         """
         Incrementally updates the model.
 
@@ -60,37 +63,29 @@ class BISGD(Model2):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
-        
-        self.counter=self.counter+1        
-        kappa = int(poisson.rvs(1, size=1))
-        
-        if kappa == 0:
 
-            if user_id not in self.data.userset or entra_uid < self.nrNodes:
-                self.user_factors[node][user_id] = np.random.normal(0.0, 0.01, self.num_factors)                    
-            if item_id not in self.data.itemset or entra_iid < self.nrNodes:
+        if user_id not in self.data.userset:
+            for node in range(self.nrNodes):
+                self.user_factors[node][user_id] = np.random.normal(0.0, 0.01, self.num_factors)
+        if item_id not in self.data.itemset:
+            for node in range(self.nrNodes):
                 self.item_factors[node][item_id] = np.random.normal(0.0, 0.01, self.num_factors)
-            self.data.AddFeedback(user_id, item_id)
-            
 
-        if kappa > 0:
+        self.data.AddFeedback(user_id, item_id)
 
-            for _ in range(kappa):
-                if user_id not in self.data.userset or entra_uid < self.nrNodes:
-                    self.user_factors[node][user_id] = np.random.normal(0.0, 0.01, self.num_factors)
-                    #print(self.user_factors[node][user_id])
-                if item_id not in self.data.itemset or entra_iid < self.nrNodes:
-                    self.item_factors[node][item_id] = np.random.normal(0.0, 0.01, self.num_factors)
-                self.data.AddFeedback(user_id, item_id)
-                self._UpdateFactors(user_id, item_id, node)
-        
+        for node in range(self.nrNodes):
+            kappa = int(poisson.rvs(1, size=1))
+
+            if kappa > 0:
+                for _ in range(kappa):
+                    self._UpdateFactors(user_id, item_id, node)
+
 
     def _UpdateFactors(self, user_id, item_id, node, update_users: bool = True, update_items: bool = True, target: int = 1):
-        self.counter=self.counter+1
-        
-        p_u = self.user_factors[node][user_id]        
+
+        p_u = self.user_factors[node][user_id]
         q_i = self.item_factors[node][item_id]
-        
+
         for _ in range(int(self.num_iterations)):
             err = target - np.inner(p_u, q_i)
 
@@ -102,11 +97,10 @@ class BISGD(Model2):
                 delta = self.learn_rate * (err * p_u - self.item_regularization * q_i)
                 q_i += delta
 
-        self.user_factors[node][user_id] = p_u      
-        
+        self.user_factors[node][user_id] = p_u
         self.item_factors[node][item_id] = q_i
-        
-    def Predict(self, user_id, item_id, node):
+
+    def Predict(self, user_id, item_id):
         """
         Return the prediction (float) of the user-item interaction score.
 
@@ -118,7 +112,33 @@ class BISGD(Model2):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[node][user_id], self.item_factors[node][item_id])
 
-    def Recommend(self, user_id: int, node: int, entra_uid: int, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+    def Recommend(self, user_id: int, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+
+        recommendation_list= {}
+
+        candidates = self.data.itemset
+
+        if exclude_known_items:
+            candidates = candidates - set(self.data.GetUserItems(user_id))
+
+        for node in range(self.nrNodes):
+            recommendation_list[node]= pd.DataFrame(self._Recommend(user_id, node)) # resultado é um tuple com lista de itense de respectivos scores
+
+        df_rec = recommendation_list[0]
+        for node in range(1,self.nrNodes):
+            df_rec = pd.merge(df_rec,recommendation_list[node], on=0)
+
+        avg_scores = np.mean(df_rec.loc[:,'1_x':].T)
+
+        recs = np.column_stack((df_rec.loc[:,'0'], avg_scores))
+        recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
+
+        if n == -1 or n > len(recs) :
+            n = len(recs)
+
+        return recs[:n]
+
+    def _Recommend(self, user_id: int, node: int):
         """
         Returns an list of tuples in the form (item_id, score), ordered by score.
 
@@ -126,43 +146,16 @@ class BISGD(Model2):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
-        
-        recs=dict()
-        recs[node] = []
-        lista=[]
 
-        if(user_id in self.data.userset and entra_uid >= self.nrNodes):
-            
-            self.counter=self.counter+1
+        recs= []
 
-            if len(candidates) == 0:
-                candidates = self.data.itemset
+        if(user_id in self.data.userset):
 
-            if exclude_known_items:
-                candidates = candidates - set(self.data.GetUserItems(user_id))
-
-            p_u = self.user_factors[node][user_id] 
-            
+            p_u = self.user_factors[node][user_id]
             itemlist = np.array(list(self.item_factors[node].keys()))
             factors = np.array(list(self.item_factors[node].values()))
-            """if self.use_numba:
-                scores = _nb_get_scores(p_u, factors)
-                recs = np.column_stack((itemlist, scores))
-                recs = _nb_sort(recs)
-            else:"""
+
             scores = np.abs(1 - np.inner(p_u, factors))
-            lista = np.column_stack((itemlist, scores))
-            lista = lista[np.argsort(lista[:, 1], kind = 'heapsort')]
-            recs[node] = lista
+            recs = np.column_stack((itemlist, scores))
 
-
-        if n == -1 or n > len(recs[node]):
-            self.counter=self.counter+1
-             n = len(recs[node])
-
-
-        if entra_uid < self.nrNodes:
-            self.counter=self.counter+1
-            n = len(recs[node])
-
-        return recs[node][:n]
+        return recs
