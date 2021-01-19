@@ -131,9 +131,9 @@ class BISGD(Model):
         for node in range(1,self.nrNodes):
             df_rec = pd.merge(df_rec,recommendation_list[node], on=0)
 
-        avg_scores = np.mean(df_rec.loc[:,'1_x':].T)
+        avg_scores = np.mean(df_rec.iloc[:,1:].T)
 
-        recs = np.column_stack((df_rec.loc[:,'0'], avg_scores))
+        recs = np.column_stack((df_rec.iloc[:,0], avg_scores))
         recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
