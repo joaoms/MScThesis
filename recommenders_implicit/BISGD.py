@@ -14,7 +14,7 @@ def _nb_combine_scores(rec_lists):
     recdict = { i : 0 for i in itemset }
     for node in num_nodes:
         for row in rec_lists[node]:
-            recdict{row[0]} += row[1]
+            recdict[row[0]] += row[1]
     return [ [key, val] for key, val in recdict.items() ]
 
 class BISGD(Model):
