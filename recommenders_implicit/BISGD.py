@@ -1,3 +1,4 @@
+from numba import njit
 from scipy.stats import poisson
 from collections import defaultdict
 import random
@@ -6,6 +7,15 @@ import numpy as np
 import pandas as pd
 from .Model import Model
 
+@njit
+def _nb_combine_scores(rec_lists):
+    num_nodes = np.shape(rec_lists)[1]
+    itemset = rec_lists[0][:,0]
+    recdict = { i : 0 for i in itemset }
+    for node in num_nodes:
+        for row in rec_lists[node]:
+            recdict{row[0]} += row[1]
+    return [ [key, val] for key, val in recdict.items() ]
 
 class BISGD(Model):
     def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, NrNodes: int = 5, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1, use_numba: bool = False):
@@ -127,13 +137,15 @@ class BISGD(Model):
         for node in range(self.nrNodes):
             recommendation_list[node]= pd.DataFrame(self._Recommend(user_id, node)) # resultado é um tuple com lista de itense de respectivos scores
 
-        df_rec = recommendation_list[0]
-        for node in range(1,self.nrNodes):
-            df_rec = pd.merge(df_rec,recommendation_list[node], on=0)
+        #df_rec = recommendation_list[0]
+        #for node in range(1,self.nrNodes):
+        #    df_rec = pd.merge(df_rec,recommendation_list[node], on=0)
 
-        avg_scores = np.mean(df_rec.iloc[:,1:].T)
+        #avg_scores = np.mean(df_rec.iloc[:,1:].T)
 
-        recs = np.column_stack((df_rec.iloc[:,0], avg_scores))
+        #recs = np.column_stack((df_rec.iloc[:,0], avg_scores))
+
+        recs = np.array(_nb_combine_scores(recommendation_list))
         recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
