@@ -114,6 +114,9 @@ class BISGD(Model):
 
     def Recommend(self, user_id: int, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
 
+        if(user_id not in self.data.userset):
+            return []
+
         recommendation_list= {}
 
         candidates = self.data.itemset
