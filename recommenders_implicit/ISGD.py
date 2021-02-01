@@ -50,12 +50,8 @@ class ISGD(Model):
 
 
     def _InitModel(self):
-        self.user_factors = {}
-        self.item_factors = {}
-        for u in self.data.userset:
-            self.user_factors[u] = np.random.normal(0.0, 0.01, self.num_factors)
-        for i in self.data.itemset:
-            self.item_factors[i] = np.random.normal(0.0, 0.01, self.num_factors)
+        self.user_factors = [np.random.normal(0.0, 0.01, self.num_factors) for _ in range(self.data.maxuserid + 1)]
+        self.item_factors = [np.random.normal(0.0, 0.01, self.num_factors) for _ in range(self.data.maxuserid + 1)]
 
     def BatchTrain(self):
         """
@@ -68,7 +64,7 @@ class ISGD(Model):
                 user_id, item_id = self.data.GetTuple(i)
                 self._UpdateFactors(user_id, item_id)
 
-    def IncrTrain(self, user_id, item_id, update_users: bool = True, update_items: bool = True):
+    def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True):
         """
         Incrementally updates the model.
 
@@ -76,11 +72,13 @@ class ISGD(Model):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
-        if user_id not in self.data.userset:
-            self.user_factors[user_id] = np.random.normal(0.0, 0.01, self.num_factors)
-        if item_id not in self.data.itemset:
-            self.item_factors[item_id] = np.random.normal(0.0, 0.01, self.num_factors)
-        self.data.AddFeedback(user_id, item_id)
+
+        user_id, item_id = self.data.AddFeedback(user, item)
+
+        if user_id == self.data.maxuserid:
+            self.user_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
+        if item_id == self.data.maxitemid:
+            self.item_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
         self._UpdateFactors(user_id, item_id)
 
     def _UpdateFactors(self, user_id, item_id, update_users: bool = True, update_items: bool = True, target: int = 1):
@@ -112,7 +110,7 @@ class ISGD(Model):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[user_id], self.item_factors[item_id])
 
-    def Recommend(self, user_id: int, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+    def Recommend(self, user, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
         """
         Returns an list of tuples in the form (item_id, score), ordered by score.
 
@@ -120,27 +118,18 @@ class ISGD(Model):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
+
+        user_id = self.data.GetUserInternalId(user)
+
+        if user_id == -1:
+            return []
+
         recs = []
 
-        if(user_id in self.data.userset):
-            #print('entrei') 
-            if len(candidates) == 0:
-                candidates = self.data.itemset
-
-            if exclude_known_items:
-                candidates = candidates - set(self.data.GetUserItems(user_id))
-
-            p_u = self.user_factors[user_id]
-            itemlist = np.array(list(self.item_factors.keys()))
-            factors = np.array(list(self.item_factors.values()))
-            """if self.use_numba:
-                scores = _nb_get_scores(p_u, factors)
-                recs = np.column_stack((itemlist, scores))
-                recs = _nb_sort(recs)
-            else:"""
-            scores = np.abs(1 - np.inner(p_u, factors))
-            recs = np.column_stack((itemlist, scores)) # é uma lista com duas colunas
-            recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
+        p_u = self.user_factors[user_id]
+        scores = np.abs(1 - np.inner(p_u, self.item_factors))
+        recs = np.column_stack((self.data.itemset, scores))
+        recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
             n = len(recs)
