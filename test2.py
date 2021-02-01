@@ -7,20 +7,23 @@ from recommenders_implicit import BISGD
 from eval_implicit import EvalPrequential
 from datetime import datetime
 
-data = pd.read_csv("datasets/playlisted_tracks.tsv","\t")
-stream = ImplicitData(data['playlist_id'],data['track_id'])
+data = pd.read_csv("datasets/ml1m_gte5_small.csv","\t")
+stream = ImplicitData(data['UserID'],data['ItemID'])
 
-numeroNodes = 2
-model = BISGD(ImplicitData([],[]),200,6, numeroNodes, learn_rate = 0.35, u_regularization = 0.5, i_regularization = 0.5, use_numba = False)
+print("ml1m 8")
+
+numeroNodes = 8
+model = BISGD(ImplicitData([],[]),160, 8, numeroNodes, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
+#model = ISGD(ImplicitData([],[]),160, 8, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
 
 eval = EvalPrequential(model,stream, metrics = ["Recall@20"])
 
 start_recommend = datetime.now()
 print('start time', start_recommend)
 
-resultados=eval.Evaluate(0,stream.size)
+results=eval.EvaluateTime(0,stream.size)
 
-print('sum(resultados[Recall@20])/stream.size', sum(resultados['Recall@20'])/stream.size)
+print('npmean(resuls[Recall@20])', np.mean(results['Recall@20']))
 
 #1 node
 #0.18298
@@ -50,3 +53,8 @@ print('end time', end_recommend)
 tempo = end_recommend - start_recommend
 
 print('run time', tempo)
+print('')
+print('get tuple',np.mean(results['time_get_tuple']))
+print('recommend',np.mean(results['time_recommend']))
+print('eval_point',np.mean(results['time_eval_point']))
+print('update',np.mean(results['time_update']))

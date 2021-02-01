@@ -4,18 +4,7 @@ from collections import defaultdict
 import random
 from data import ImplicitData
 import numpy as np
-import pandas as pd
 from .Model import Model
-
-@njit
-def _nb_combine_scores(rec_lists):
-    num_nodes = np.shape(rec_lists)[1]
-    itemset = rec_lists[0][:,0]
-    recdict = { i : 0 for i in itemset }
-    for node in num_nodes:
-        for row in rec_lists[node]:
-            recdict[row[0]] += row[1]
-    return [ [key, val] for key, val in recdict.items() ]
 
 class BISGD(Model):
     def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, NrNodes: int = 5, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1, use_numba: bool = False):
@@ -43,16 +32,9 @@ class BISGD(Model):
         self._InitModel()
 
     def _InitModel(self):
-        self.user_factors = []
-        self.item_factors = []
+        self.user_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)] for _ in range(self.nrNodes)]
+        self.item_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxitemid + 1)] for _ in range(self.nrNodes)]
 
-        for node in range(self.nrNodes):
-            self.user_factors.append({})
-            self.item_factors.append({})
-            for u in self.data.userset:
-                self.user_factors[node][u] = np.random.normal(0.0, 0.01, self.num_factors)
-            for i in self.data.itemset:
-                self.item_factors[node][i] = np.random.normal(0.0, 0.01, self.num_factors)
 
     def BatchTrain(self):
         """
@@ -65,7 +47,7 @@ class BISGD(Model):
                 user_id, item_id = self.data.GetTuple(i)
                 self._UpdateFactors(user_id, item_id)
 
-    def IncrTrain(self, user_id, item_id, update_users: bool = True, update_items: bool = True):
+    def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True):
         """
         Incrementally updates the model.
 
@@ -74,14 +56,15 @@ class BISGD(Model):
         item_id -- The ID of the item
         """
 
-        if user_id not in self.data.userset:
-            for node in range(self.nrNodes):
-                self.user_factors[node][user_id] = np.random.normal(0.0, 0.01, self.num_factors)
-        if item_id not in self.data.itemset:
-            for node in range(self.nrNodes):
-                self.item_factors[node][item_id] = np.random.normal(0.0, 0.01, self.num_factors)
+        user_id, item_id = self.data.AddFeedback(user, item)
 
-        self.data.AddFeedback(user_id, item_id)
+        if user_id == self.data.maxuserid:
+            for node in range(self.nrNodes):
+                self.user_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
+        if item_id == self.data.maxitemid:
+            for node in range(self.nrNodes):
+                self.item_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
+
 
         for node in range(self.nrNodes):
             kappa = int(poisson.rvs(1, size=1))
@@ -122,55 +105,30 @@ class BISGD(Model):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[node][user_id], self.item_factors[node][item_id])
 
-    def Recommend(self, user_id: int, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+    def Recommend(self, user, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
 
-        if(user_id not in self.data.userset):
+        user_id = self.data.GetUserInternalId(user)
+        if user_id == -1:
             return []
 
-        recommendation_list= {}
 
-        candidates = self.data.itemset
+        recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
 
-        if exclude_known_items:
-            candidates = candidates - set(self.data.GetUserItems(user_id))
+        #candidates = set(self.data.itemset)
+
+        #if exclude_known_items:
+        #    candidates = candidates - set(self.data.GetUserItems(user_id))
 
         for node in range(self.nrNodes):
-            recommendation_list[node]= pd.DataFrame(self._Recommend(user_id, node)) # resultado é um tuple com lista de itense de respectivos scores
+            p_u = self.user_factors[node][user_id]
+            recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
 
-        #df_rec = recommendation_list[0]
-        #for node in range(1,self.nrNodes):
-        #    df_rec = pd.merge(df_rec,recommendation_list[node], on=0)
+        scores = np.mean(recommendation_list, 1)
+        recs = np.column_stack((self.data.itemset, scores))
 
-        #avg_scores = np.mean(df_rec.iloc[:,1:].T)
-
-        #recs = np.column_stack((df_rec.iloc[:,0], avg_scores))
-
-        recs = np.array(_nb_combine_scores(recommendation_list))
         recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
             n = len(recs)
 
         return recs[:n]
-
-    def _Recommend(self, user_id: int, node: int):
-        """
-        Returns an list of tuples in the form (item_id, score), ordered by score.
-
-        Keyword arguments:
-        user_id -- The ID of the user
-        item_id -- The ID of the item
-        """
-
-        recs= []
-
-        if(user_id in self.data.userset):
-
-            p_u = self.user_factors[node][user_id]
-            itemlist = np.array(list(self.item_factors[node].keys()))
-            factors = np.array(list(self.item_factors[node].values()))
-
-            scores = np.abs(1 - np.inner(p_u, factors))
-            recs = np.column_stack((itemlist, scores))
-
-        return recs
