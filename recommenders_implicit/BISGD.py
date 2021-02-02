@@ -1,5 +1,5 @@
+from joblib import Parallel, delayed
 from numba import njit
-from scipy.stats import poisson
 from collections import defaultdict
 import random
 from data import ImplicitData
@@ -67,7 +67,7 @@ class BISGD(Model):
 
 
         for node in range(self.nrNodes):
-            kappa = int(poisson.rvs(1, size=1))
+            kappa = int(np.random.poisson(1, size=1))
 
             if kappa > 0:
                 for _ in range(kappa):
@@ -112,18 +112,15 @@ class BISGD(Model):
             return []
 
 
-        recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
+        #recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
 
-        #candidates = set(self.data.itemset)
+        recommendation_list = Parallel(n_jobs = -1)(delayed(_parallel_get_scores)(self.user_factors[n][user_id],self.item_factors[n]) for n in range(self.nrNodes))
 
-        #if exclude_known_items:
-        #    candidates = candidates - set(self.data.GetUserItems(user_id))
+        #for node in range(self.nrNodes):
+        #    p_u = self.user_factors[node][user_id]
+        #    recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
 
-        for node in range(self.nrNodes):
-            p_u = self.user_factors[node][user_id]
-            recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
-
-        scores = np.mean(recommendation_list, 1)
+        scores = np.mean(recommendation_list, 0)
         recs = np.column_stack((self.data.itemset, scores))
 
         if exclude_known_items:
@@ -136,3 +133,6 @@ class BISGD(Model):
             n = len(recs)
 
         return recs[:n]
+
+def _parallel_get_scores(p_u, q):
+    return np.abs(1 - np.inner(p_u, q))
