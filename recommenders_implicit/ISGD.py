@@ -50,8 +50,8 @@ class ISGD(Model):
 
 
     def _InitModel(self):
-        self.user_factors = [np.random.normal(0.0, 0.01, self.num_factors) for _ in range(self.data.maxuserid + 1)]
-        self.item_factors = [np.random.normal(0.0, 0.01, self.num_factors) for _ in range(self.data.maxuserid + 1)]
+        self.user_factors = [np.random.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)]
+        self.item_factors = [np.random.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)]
 
     def BatchTrain(self):
         """
@@ -76,9 +76,9 @@ class ISGD(Model):
         user_id, item_id = self.data.AddFeedback(user, item)
 
         if len(self.user_factors) == self.data.maxuserid:
-            self.user_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
+            self.user_factors.append(np.random.normal(0.0, 0.1, self.num_factors))
         if len(self.item_factors) == self.data.maxitemid:
-            self.item_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
+            self.item_factors.append(np.random.normal(0.0, 0.1, self.num_factors))
         self._UpdateFactors(user_id, item_id)
 
     def _UpdateFactors(self, user_id, item_id, update_users: bool = True, update_items: bool = True, target: int = 1):
