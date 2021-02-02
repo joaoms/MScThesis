@@ -57,11 +57,11 @@ class BISGD(Model):
 
         user_id, item_id = self.data.AddFeedback(user, item)
 
-        if len(self.user_factors[node]) == self.data.maxuserid:
-            for node in range(self.nrNodes):
+        for node in range(self.nrNodes):
+            if len(self.user_factors[node]) == self.data.maxuserid:
                 self.user_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
-        if len(self.item_factors[node]) == self.data.maxitemid:
-            for node in range(self.nrNodes):
+        for node in range(self.nrNodes):
+            if len(self.item_factors[node]) == self.data.maxitemid:
                 self.item_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
 
 
