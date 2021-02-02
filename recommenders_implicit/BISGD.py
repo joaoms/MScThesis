@@ -1,4 +1,3 @@
-from joblib import Parallel, delayed
 from numba import njit
 from collections import defaultdict
 import random
@@ -112,13 +111,11 @@ class BISGD(Model):
             return []
 
 
-        #recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
+        recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
 
-        recommendation_list = Parallel(n_jobs = -1)(delayed(_parallel_get_scores)(self.user_factors[n][user_id],self.item_factors[n]) for n in range(self.nrNodes))
-
-        #for node in range(self.nrNodes):
-        #    p_u = self.user_factors[node][user_id]
-        #    recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
+        for node in range(self.nrNodes):
+            p_u = self.user_factors[node][user_id]
+            recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
 
         scores = np.mean(recommendation_list, 0)
         recs = np.column_stack((self.data.itemset, scores))
@@ -133,6 +130,3 @@ class BISGD(Model):
             n = len(recs)
 
         return recs[:n]
-
-def _parallel_get_scores(p_u, q):
-    return np.abs(1 - np.inner(p_u, q))

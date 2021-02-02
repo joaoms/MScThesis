@@ -7,14 +7,14 @@ from recommenders_implicit import BISGD,ISGD
 from eval_implicit import EvalPrequential
 from datetime import datetime
 
-data = pd.read_csv("datasets/ml1m_gte5_small.csv","\t")
+data = pd.read_csv("datasets/ml1m_gte5_50k.csv","\t")
 stream = ImplicitData(data['UserID'],data['ItemID'])
 
 print("ml1m 8")
 
 numeroNodes = 8
-#model = BISGD(ImplicitData([],[]),160, 8, numeroNodes, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
-model = ISGD(ImplicitData([],[]),160, 8, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
+model = BISGD(ImplicitData([],[]),160, 8, numeroNodes, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
+#model = ISGD(ImplicitData([],[]),160, 8, learn_rate = 0.1, u_regularization = 0.4, i_regularization = 0.4, use_numba = False)
 
 eval = EvalPrequential(model,stream, metrics = ["Recall@20"])
 
