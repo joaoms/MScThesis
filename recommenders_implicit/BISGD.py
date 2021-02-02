@@ -105,7 +105,7 @@ class BISGD(Model):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[node][user_id], self.item_factors[node][item_id])
 
-    def Recommend(self, user, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+    def Recommend(self, user, n: int = -1, exclude_known_items: bool = True):
 
         user_id = self.data.GetUserInternalId(user)
         if user_id == -1:
@@ -125,6 +125,10 @@ class BISGD(Model):
 
         scores = np.mean(recommendation_list, 1)
         recs = np.column_stack((self.data.itemset, scores))
+
+        if exclude_known_items:
+            user_items = self.data.GetUserItems(user_id)
+            recs = np.delete(recs, user_items, 0)
 
         recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 

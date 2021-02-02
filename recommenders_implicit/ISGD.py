@@ -75,9 +75,9 @@ class ISGD(Model):
 
         user_id, item_id = self.data.AddFeedback(user, item)
 
-        if user_id == self.data.maxuserid:
+        if len(self.user_factors) == self.data.maxuserid:
             self.user_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
-        if item_id == self.data.maxitemid:
+        if len(self.item_factors) == self.data.maxitemid:
             self.item_factors.append(np.random.normal(0.0, 0.01, self.num_factors))
         self._UpdateFactors(user_id, item_id)
 
@@ -110,7 +110,7 @@ class ISGD(Model):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[user_id], self.item_factors[item_id])
 
-    def Recommend(self, user, n: int = -1, candidates: set = {}, exclude_known_items: bool = True):
+    def Recommend(self, user, n: int = -1, exclude_known_items: bool = True):
         """
         Returns an list of tuples in the form (item_id, score), ordered by score.
 
@@ -128,7 +128,13 @@ class ISGD(Model):
 
         p_u = self.user_factors[user_id]
         scores = np.abs(1 - np.inner(p_u, self.item_factors))
+
         recs = np.column_stack((self.data.itemset, scores))
+
+        if exclude_known_items:
+            user_items = self.data.GetUserItems(user_id)
+            recs = np.delete(recs, user_items, 0)
+
         recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
