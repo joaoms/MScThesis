@@ -117,7 +117,7 @@ class BISGD(Model):
             p_u = self.user_factors[node][user_id]
             recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
 
-        scores = np.mean(recommendation_list, 0)
+        scores = np.mean(recommendation_list, 1)
         recs = np.column_stack((self.data.itemset, scores))
 
         if exclude_known_items:
