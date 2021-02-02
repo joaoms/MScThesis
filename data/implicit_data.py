@@ -19,10 +19,6 @@ class ImplicitData:
             self.useritems.append([])
         for i in range(self.maxitemid + 1):
             self.itemusers.append([])
-        print(len(self.useritems))
-        print(len(self.userindices))
-        print(len(self.itemindices))
-        print(self.size)
         for r in range(self.size):
             self.useritems[self.userindices[r]].append(self.itemindices[r])
             self.itemusers[self.itemindices[r]].append(self.userindices[r])
