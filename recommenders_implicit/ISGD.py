@@ -1,23 +1,8 @@
-#from numba import njit
-import random
 from data import ImplicitData
 import numpy as np
 from .Model import Model
 from pprint import pprint
-"""
-@njit
-def _nb_Predict(u, i):
-    return np.inner(u,i)
 
-@njit
-def _nb_sort(recs):
-    return recs[np.argsort(recs[:, 1], kind='mergesort')]
-
-@njit
-def _nb_get_scores(p_u, q):
-    return np.abs(1 - np.dot(q, p_u))
-
-"""
 class ISGD(Model):
     """
     Incremental SGD-based matrix factorization algorithm for implicit feedback:

@@ -13,12 +13,12 @@ class EvalPrequential:
         self.data = data
         self.metrics = metrics
 
-    def EvaluateTime(self, start_eval = 0, count = 0):
+    def EvaluateTime(self, start_eval = 0, count = 0, interleaved = 1):
         results = dict()
-        time_get_tuple = np.zeros(self.data.size)
-        time_recommend = np.zeros(self.data.size)
-        time_eval_point = np.zeros(self.data.size)
-        time_update = np.zeros(self.data.size)
+        time_get_tuple = []
+        time_recommend = []
+        time_eval_point = []
+        time_update = []
 
         if not count:
             count = self.data.size
@@ -26,7 +26,7 @@ class EvalPrequential:
         count = min(count, self.data.size)
 
         for metric in self.metrics:
-            results[metric] = np.zeros(count)
+            results[metric] = []
 
         for i in range(count):
             if i % (count/100) == 0:
@@ -35,28 +35,27 @@ class EvalPrequential:
             start_get_tuple = time.time()
             uid, iid = self.data.GetTuple(i)
             end_get_tuple = time.time()
-            time_get_tuple[i] = end_get_tuple - start_get_tuple
+            time_get_tuple.append(end_get_tuple - start_get_tuple)
 
-            if i >= start_eval:
+            if i >= start_eval and i % interleaved == 0:
                 start_recommend = time.time()
                 reclist = self.model.Recommend(uid)
                 end_recommend = time.time()
-                time_recommend[i] = end_recommend - start_recommend
+                time_recommend.append(end_recommend - start_recommend)
 
                 start_eval_point = time.time()
-                results[metric][i] = self.__EvalPoint(iid, reclist)
+                results[metric].append(self.__EvalPoint(iid, reclist))
                 end_eval_point = time.time()
-                time_eval_point[i] = end_eval_point - start_eval_point
+                time_eval_point.append(end_eval_point - start_eval_point)
 
             start_update = time.time()
             self.model.IncrTrain(uid, iid)
             end_update = time.time()
-            time_update[i] = end_update - start_update
+            time_update.append(end_update - start_update)
 
-        results[metric] = np.delete(results[metric], range(start_eval))
         results['time_get_tuple'] = time_get_tuple
-        results['time_recommend'] = np.delete(time_recommend, range(start_eval))
-        results['time_eval_point'] = np.delete(time_recommend, range(start_eval))
+        results['time_recommend'] = time_recommend
+        results['time_eval_point'] = time_eval_point
         results['time_update'] = time_update
 
         return results
