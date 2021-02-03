@@ -61,7 +61,7 @@ class ISGD(Model):
         for iter in range(self.num_iterations):
             np.random.shuffle(idx)
             for i in idx:
-                user_id, item_id = self.data.GetTuple(i)
+                user_id, item_id = self.data.GetTuple(i, True)
                 self._UpdateFactors(user_id, item_id)
 
     def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True):

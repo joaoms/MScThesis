@@ -49,7 +49,7 @@ class ImplicitData:
         self.itemusers[item_id].append(user_id)
         return user_id, item_id
 
-    def GetTuple(self, idx: int, internal = True):
+    def GetTuple(self, idx: int, internal: bool = False):
         if internal:
             return self.userindices[idx], self.itemindices[idx]
         return self.userlist[idx], self.itemlist[idx]
