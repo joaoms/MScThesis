@@ -60,23 +60,24 @@ class EvalPrequential:
 
         return results
 
-    def Evaluate(self, start = 0, count = 0):
+    def Evaluate(self, start_eval = 0, count = 0, interleaved = 1):
         results = dict()
 
         if not count:
             count = self.data.size
 
-        count = min(count, self.data.size - start)
+        count = min(count, self.data.size)
 
         for metric in self.metrics:
-            results[metric] = np.zeros(count)
+            results[metric] = []
 
         for i in range(count):
-            uid, iid = self.data.GetTuple(i + start)
-            reclist = self.model.Recommend(uid)
-            #print('reclist', reclist)
-            results[metric][i] = self.__EvalPoint(iid, reclist)
-            #print('results', results)
+            uid, iid = self.data.GetTuple(i)
+            if i >= start_eval and i % interleaved == 0:
+                reclist = self.model.Recommend(uid)
+                #print('reclist', reclist)
+                results[metric].append(self.__EvalPoint(iid, reclist))
+                #print('results', results)
             self.model.IncrTrain(uid, iid)
 
         return results
