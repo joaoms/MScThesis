@@ -37,7 +37,7 @@ class EvalPrequential:
             end_get_tuple = time.time()
             time_get_tuple.append(end_get_tuple - start_get_tuple)
 
-            if i >= start_eval and i % interleaved == 0 and iid not in self.data.GetUserItems(uid, False):
+            if i >= start_eval and i % interleaved == 0 and iid not in self.model.data.GetUserItems(uid, False):
                 start_recommend = time.time()
                 reclist = self.model.Recommend(uid)
                 end_recommend = time.time()
