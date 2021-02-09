@@ -37,7 +37,7 @@ class EvalPrequential:
             end_get_tuple = time.time()
             time_get_tuple.append(end_get_tuple - start_get_tuple)
 
-            if i >= start_eval and i % interleaved == 0:
+            if i >= start_eval and i % interleaved == 0 and iid not in self.data.GetUserItems(uid, False):
                 start_recommend = time.time()
                 reclist = self.model.Recommend(uid)
                 end_recommend = time.time()
@@ -73,11 +73,9 @@ class EvalPrequential:
 
         for i in range(count):
             uid, iid = self.data.GetTuple(i)
-            if i >= start_eval and i % interleaved == 0:
+            if i >= start_eval and i % interleaved == 0 and iid not in self.data.GetUserItems(uid, False):
                 reclist = self.model.Recommend(uid)
-                #print('reclist', reclist)
                 results[metric].append(self.__EvalPoint(iid, reclist))
-                #print('results', results)
             self.model.IncrTrain(uid, iid)
 
         return results
