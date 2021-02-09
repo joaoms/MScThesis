@@ -26,13 +26,13 @@ class ImplicitData:
     def GetUserItems(self, user_id, internal = True):
         if internal:
             return self.useritems[user_id]
-        uid = GetUserInternalId(user_id)
+        uid = self.GetUserInternalId(user_id)
         return self.itemset[self.useritems[uid]]
 
     def GetItemUsers(self, item_id, internal = True):
         if internal:
             return self.itemusers[item_id]
-        iid = GetItemInternalId(item_id)
+        iid = self.GetItemInternalId(item_id)
         return self.userset[self.itemusers[iid]]
 
     def AddFeedback(self, user, item):
@@ -72,12 +72,12 @@ class ImplicitData:
             return item_id[0]
         return -1
 
-    def GetExternalUserId(self, user_id:int):
+    def GetUserExternalId(self, user_id:int):
         if user_id > -1 and item_id <= self.maxuserid:
             return self.userset[user_id]
         return ""
 
-    def GetExternalItemId(self, item_id:int):
+    def GetItemExternalId(self, item_id:int):
         if item_id > -1 and item_id <= self.maxitemid:
             return self.itemset[item_id]
         return ""
