@@ -1,12 +1,14 @@
 from numba import njit
 from collections import defaultdict
 import random
+
+from numpy.core.numeric import NaN
 from data import ImplicitData
 import numpy as np
 from .Model import Model
 
 class BISGD(Model):
-    def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, NrNodes: int = 5, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1, use_numba: bool = False):
+    def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, num_nodes: int = 5, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1):
         """    Constructor.
 
         Keyword arguments:
@@ -25,14 +27,13 @@ class BISGD(Model):
         self.user_regularization = u_regularization
         self.item_regularization = i_regularization
         self.random_seed = random_seed
-        self.use_numba = use_numba
-        self.nrNodes = NrNodes
+        self.num_nodes = num_nodes
         np.random.seed(random_seed)
         self._InitModel()
 
     def _InitModel(self):
-        self.user_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)] for _ in range(self.nrNodes)]
-        self.item_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxitemid + 1)] for _ in range(self.nrNodes)]
+        self.user_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)] for _ in range(self.num_nodes)]
+        self.item_factors = [[np.random.Generator.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxitemid + 1)] for _ in range(self.num_nodes)]
 
 
     def BatchTrain(self):
@@ -57,16 +58,16 @@ class BISGD(Model):
 
         user_id, item_id = self.data.AddFeedback(user, item)
 
-        for node in range(self.nrNodes):
+        for node in range(self.num_nodes):
             if len(self.user_factors[node]) == self.data.maxuserid:
                 self.user_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
-        for node in range(self.nrNodes):
+        for node in range(self.num_nodes):
             if len(self.item_factors[node]) == self.data.maxitemid:
                 self.item_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
 
 
-        for node in range(self.nrNodes):
-            kappa = int(np.random.poisson(1, size=1))
+        for node in range(self.num_nodes):
+            kappa = min(1, int(np.random.poisson(1, size=1)))
 
             if kappa > 0:
                 for _ in range(kappa):
@@ -100,21 +101,70 @@ class BISGD(Model):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
-        #if self.use_numba:
-            #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
-        return np.inner(self.user_factors[node][user_id], self.item_factors[node][item_id])
+        rec = 0
+        for node in range(self.num_nodes):
+            rec = rec + np.inner(self.user_factors[node][user_id], self.item_factors[node][item_id])
+        return rec / self.num_nodes
 
     def Recommend(self, user, n: int = -1, exclude_known_items: bool = True):
 
         user_id = self.data.GetUserInternalId(user)
         if user_id == -1:
             return []
+        
+        if exclude_known_items:
+            user_items = self.data.GetUserItems(user_id)
 
-
-        recommendation_list = np.empty((self.data.maxitemid + 1, self.nrNodes))
-
-        for node in range(self.nrNodes):
+        precs = [None for _ in range(self.num_nodes)]
+        for node in range(self.num_nodes):
             p_u = self.user_factors[node][user_id]
+            scores = np.abs(1 - np.inner(p_u, self.item_factors[node]))
+            recs_node = np.column_stack((self.data.itemset, scores))
+            
+            if exclude_known_items:
+                recs_node = np.delete(recs_node, user_items, 0)
+            
+            recs_node = recs_node[np.argsort(recs_node[:, 1], kind = 'heapsort')]
+            
+            if n == -1 or n > len(recs_node) :
+                n = len(recs_node)
+            
+            recs_node = recs_node[:n]
+            
+            precs[node] = recs_node
+
+        recs = self._AvgRecs(precs)
+
+        recs = recs[np.argsort(-recs[:, 1], kind = 'heapsort')]
+
+        if n == -1 or n > len(recs) :
+            n = len(recs)
+
+        return recs[:n]
+
+    def _AvgRecs(self, precs):
+        recs_dict = {}
+        for node in range(self.num_nodes):
+            for pair in precs[node]:
+                if pair[0] in recs_dict:
+                    recs_dict[pair[0]] = recs_dict[pair[0]] + 1 - pair[1]
+                else:
+                    recs_dict[pair[0]] = 1 - pair[1]
+        
+        return np.array([[i, recs_dict[i]/self.num_nodes] for i in recs_dict])
+ 
+    def RecommendOld(self, user, n: int = -1, exclude_known_items: bool = True):
+
+        user_id = self.data.GetUserInternalId(user)
+        if user_id == -1:
+            return []
+
+
+        recommendation_list = np.zeros((self.data.maxitemid + 1, self.num_nodes)) + 1
+
+        for node in range(self.num_nodes):
+            p_u = self.user_factors[node][user_id]
+            
             recommendation_list[:,node] = np.abs(1 - np.inner(p_u, self.item_factors[node]))
 
         scores = np.mean(recommendation_list, 1)
@@ -130,3 +180,4 @@ class BISGD(Model):
             n = len(recs)
 
         return recs[:n]
+

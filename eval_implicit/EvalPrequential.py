@@ -37,16 +37,17 @@ class EvalPrequential:
             end_get_tuple = time.time()
             time_get_tuple.append(end_get_tuple - start_get_tuple)
 
-            if i >= start_eval and i % interleaved == 0 and iid not in self.model.data.GetUserItems(uid, False):
-                start_recommend = time.time()
-                reclist = self.model.Recommend(uid)
-                end_recommend = time.time()
-                time_recommend.append(end_recommend - start_recommend)
+            if i >= start_eval and i % interleaved == 0:
+                if iid not in self.model.data.GetUserItems(uid, False):
+                    start_recommend = time.time()
+                    reclist = self.model.Recommend(uid, 20)
+                    end_recommend = time.time()
+                    time_recommend.append(end_recommend - start_recommend)
 
-                start_eval_point = time.time()
-                results[metric].append(self.__EvalPoint(iid, reclist))
-                end_eval_point = time.time()
-                time_eval_point.append(end_eval_point - start_eval_point)
+                    start_eval_point = time.time()
+                    results[metric].append(self.__EvalPoint(iid, reclist))
+                    end_eval_point = time.time()
+                    time_eval_point.append(end_eval_point - start_eval_point)
 
             start_update = time.time()
             self.model.IncrTrain(uid, iid)
@@ -82,10 +83,12 @@ class EvalPrequential:
 
     def __EvalPoint(self, item_id, reclist):
         result = 0
+        if len(reclist) == 0:
+            return 0
         for metric in self.metrics:
             if metric == "Recall@20":
                 #print('reclist', reclist)
                 #print('len(reclist)', len(reclist))
-                reclist = [x[0] for x in reclist[:20]]
-                result = int(item_id in reclist)
+                #reclist = [x[0] for x in reclist[:20]]
+                result = int(item_id in reclist[:20,0])
         return result

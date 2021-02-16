@@ -1,7 +1,6 @@
 from data import ImplicitData
 import numpy as np
 from .Model import Model
-from pprint import pprint
 
 class ISGD(Model):
     """
@@ -10,7 +9,7 @@ class ISGD(Model):
     https://link.springer.com/chapter/10.1007/978-3-319-08786-3_41
     """
 
-    def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1, use_numba: bool = False):
+    def __init__(self, data: ImplicitData, num_factors: int = 10, num_iterations: int = 10, learn_rate: float = 0.01, u_regularization: float = 0.1, i_regularization: float = 0.1, random_seed: int = 1):
         """
         Constructor.
 
@@ -29,7 +28,6 @@ class ISGD(Model):
         self.user_regularization = u_regularization
         self.item_regularization = i_regularization
         self.random_seed = random_seed
-        self.use_numba = use_numba
         np.random.seed(random_seed)
         self._InitModel()
 
@@ -49,7 +47,7 @@ class ISGD(Model):
                 user_id, item_id = self.data.GetTuple(i, True)
                 self._UpdateFactors(user_id, item_id)
 
-    def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True):
+    def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True, n_times: int = 1):
         """
         Incrementally updates the model.
 
@@ -64,7 +62,10 @@ class ISGD(Model):
             self.user_factors.append(np.random.normal(0.0, 0.1, self.num_factors))
         if len(self.item_factors) == self.data.maxitemid:
             self.item_factors.append(np.random.normal(0.0, 0.1, self.num_factors))
-        self._UpdateFactors(user_id, item_id)
+
+        if update_users or update_items:
+            for _ in range(n_times):
+                self._UpdateFactors(user_id, item_id, update_users, update_items)
 
     def _UpdateFactors(self, user_id, item_id, update_users: bool = True, update_items: bool = True, target: int = 1):
         p_u = self.user_factors[user_id]
@@ -95,7 +96,7 @@ class ISGD(Model):
             #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[user_id], self.item_factors[item_id])
 
-    def Recommend(self, user, n: int = -1, exclude_known_items: bool = True):
+    def Recommend(self, user, n: int = -1, exclude_known_items: bool = True, sort_list: bool = True):
         """
         Returns an list of tuples in the form (item_id, score), ordered by score.
 
@@ -120,7 +121,8 @@ class ISGD(Model):
             user_items = self.data.GetUserItems(user_id)
             recs = np.delete(recs, user_items, 0)
 
-        recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
+        if sort_list:
+            recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')]
 
         if n == -1 or n > len(recs) :
             n = len(recs)
