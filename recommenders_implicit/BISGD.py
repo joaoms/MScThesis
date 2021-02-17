@@ -135,7 +135,7 @@ class BISGD(Model):
 
         recs = self._AvgRecs(precs)
 
-        recs = recs[np.argsort(-recs[:, 1], kind = 'heapsort')]
+        recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')[::-1]]
 
         if n == -1 or n > len(recs) :
             n = len(recs)
