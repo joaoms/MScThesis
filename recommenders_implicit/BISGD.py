@@ -135,9 +135,9 @@ class BISGD(Model):
 
         recs = self._AvgRecs(precs)
 
-        recs = recs[np.argsort(recs[:, 1], kind = 'heapsort')[::-1]]
+        recs = recs[np.argsort(-recs[:, 1].astype(np.float), kind = 'heapsort')]
 
-        if n == -1 or n > len(recs) :
+        if n == -1 or n > len(recs):
             n = len(recs)
 
         return recs[:n]
@@ -147,9 +147,9 @@ class BISGD(Model):
         for node in range(self.num_nodes):
             for pair in precs[node]:
                 if pair[0] in recs_dict:
-                    recs_dict[pair[0]] = recs_dict[pair[0]] + 1 - pair[1]
+                    recs_dict[pair[0]] = recs_dict[pair[0]] + 1 - pair[1].astype(np.float)
                 else:
-                    recs_dict[pair[0]] = 1 - pair[1]
+                    recs_dict[pair[0]] = 1 - pair[1].astype(np.float)
         
         return np.array([[i, recs_dict[i]/self.num_nodes] for i in recs_dict])
  
