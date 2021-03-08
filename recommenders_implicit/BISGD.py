@@ -1,4 +1,3 @@
-from numba import njit
 from collections import defaultdict
 import random
 
@@ -124,12 +123,13 @@ class BISGD(Model):
             if exclude_known_items:
                 recs_node = np.delete(recs_node, user_items, 0)
             
-            recs_node = recs_node[np.argsort(recs_node[:, 1], kind = 'heapsort')]
-            
             if n == -1 or n > len(recs_node) :
                 n = len(recs_node)
-            
-            recs_node = recs_node[:n]
+
+            # recs_node = recs_node[np.argsort(recs_node[:, 1], kind = 'heapsort')]
+            # recs_node = recs_node[:n]
+
+            recs_node = recs_node[np.argpartition(recs_node[:,1], n)[:n]]
             
             precs[node] = recs_node
 
