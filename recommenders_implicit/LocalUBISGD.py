@@ -24,8 +24,8 @@ class LocalUBISGD(BISGD):
     def _InitModel(self):
         super()._InitModel()
         #self.metamodel = ISGD(self.data, self.num_nodes, self.num_iterations, self.learn_rate, self.user_regularization, self.item_regularization, random_seed=self.random_seed)
-        self.metamodel_users = [np.random.normal(0.0, 0.1, self.num_nodes) for _ in range(self.data.maxuserid + 1)]
-        self.metamodel_items = [np.random.normal(0.0, 0.1, self.num_nodes) for _ in range(self.data.maxuserid + 1)]
+        self.metamodel_users = [np.abs(np.random.normal(0.0, 0.1, self.num_nodes)) for _ in range(self.data.maxuserid + 1)]
+        self.metamodel_items = [np.abs(np.random.normal(0.0, 0.1, self.num_nodes)) for _ in range(self.data.maxuserid + 1)]
 
 
     def IncrTrain(self, user, item, update_users: bool = True, update_items: bool = True):
@@ -42,11 +42,11 @@ class LocalUBISGD(BISGD):
         #self.metamodel.IncrTrain(user, item)
 
         if len(self.user_factors[0]) == self.data.maxuserid:
-            self.metamodel_users.append(np.random.normal(0.0, 0.1, self.num_nodes))
+            self.metamodel_users.append(np.abs(np.random.normal(0.0, 0.1, self.num_nodes)))
             for node in range(self.num_nodes):
                 self.user_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
         if len(self.item_factors[0]) == self.data.maxitemid:
-            self.metamodel_items.append(np.random.normal(0.0, 0.1, self.num_nodes))
+            self.metamodel_items.append(np.abs(np.random.normal(0.0, 0.1, self.num_nodes)))
             for node in range(self.num_nodes):
                 self.item_factors[node].append(np.random.normal(0.0, 0.1, self.num_factors))
         
@@ -65,10 +65,12 @@ class LocalUBISGD(BISGD):
             if update_users:
                 delta = self.learn_rate * (err * q_i - self.user_regularization * p_u)
                 p_u += delta
+                p_u[p_u<0] = 0.0
 
             if update_items:
                 delta = self.learn_rate * (err * p_u - self.item_regularization * q_i)
                 q_i += delta
+                q_i[q_i<0] = 0.0
 
         self.metamodel_users[user_id] = p_u
         self.metamodel_items[item_id] = q_i
