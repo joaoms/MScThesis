@@ -80,7 +80,7 @@ class ImplicitData:
         return -1
 
     def GetUserExternalId(self, user_id:int):
-        if user_id > -1 and item_id <= self.maxuserid:
+        if user_id > -1 and user_id <= self.maxuserid:
             return self.userset[user_id]
         return ""
 

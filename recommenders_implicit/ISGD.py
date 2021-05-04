@@ -33,8 +33,11 @@ class ISGD(Model):
 
 
     def _InitModel(self):
+        self.ResetModel()
+
+    def ResetModel(self):
         self.user_factors = [np.random.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)]
-        self.item_factors = [np.random.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxuserid + 1)]
+        self.item_factors = [np.random.normal(0.0, 0.1, self.num_factors) for _ in range(self.data.maxitemid + 1)]
 
     def BatchTrain(self):
         """
@@ -92,8 +95,6 @@ class ISGD(Model):
         user_id -- The ID of the user
         item_id -- The ID of the item
         """
-        #if self.use_numba:
-            #return _nb_Predict(self.user_factors[user_id], self.item_factors[item_id])
         return np.inner(self.user_factors[user_id], self.item_factors[item_id])
 
     def Recommend(self, user, n: int = -1, exclude_known_items: bool = True, sort_list: bool = True):
