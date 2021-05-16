@@ -3,15 +3,17 @@ from recommenders_implicit import *
 import numpy as np
 import pandas as pd
 import time
-#import metrics
+import random
 
 class EvalPrequential:
 
-    def __init__(self, model: Model, data: ImplicitData, metrics = ["Recall@20"]):
+    def __init__(self, model: Model, data: ImplicitData, metrics = ["Recall@20"], seed: int = None):
         # TODO: Input checks
         self.model = model
         self.data = data
         self.metrics = metrics
+        self.seed = seed
+
 
     def EvaluateTime(self, start_eval = 0, count = 0, interleaved = 1):
         results = dict()
@@ -19,6 +21,7 @@ class EvalPrequential:
         time_recommend = []
         time_eval_point = []
         time_update = []
+        random.seed(self.seed)
 
         if not count:
             count = self.data.size
@@ -29,15 +32,13 @@ class EvalPrequential:
             results[metric] = []
 
         for i in range(count):
-            if i % (count/100) == 0:
-                print(".", end = '', flush = True)
-
             start_get_tuple = time.time()
             uid, iid = self.data.GetTuple(i)
             end_get_tuple = time.time()
             time_get_tuple.append(end_get_tuple - start_get_tuple)
 
-            if i >= start_eval and i % interleaved == 0:
+#            if i >= start_eval and i % interleaved == 0:
+            if i >= start_eval and random.random() <= 1/interleaved:
                 if iid not in self.model.data.GetUserItems(uid, False):
                     start_recommend = time.time()
                     reclist = self.model.Recommend(uid, 20)
