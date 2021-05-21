@@ -128,8 +128,8 @@ class BISGD(Model):
 
             # recs_node = recs_node[np.argsort(recs_node[:, 1], kind = 'heapsort')]
             # recs_node = recs_node[:n]
-
-            recs_node = recs_node[np.argpartition(recs_node[:,1], n)[:n]]
+            # No need to sort yet, just partition:
+            recs_node = recs_node[np.argpartition(recs_node[:,1], n-1)[:n]]
             
             precs[node] = recs_node
 
